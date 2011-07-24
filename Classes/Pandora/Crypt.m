@@ -19,36 +19,35 @@ NSString* PandoraDecrypt(NSString* string) {
   int len, i, j;
   uint32_t l, r, t, a, b, c, d, f;
   const char *hex;
-  unsigned char *cstr;
-  char buf[3];
+//  unsigned char *cstr;
+  char buf[3] = {'\0', '\0', '\0'};
 
-  hex  = [string cStringUsingEncoding: NSUTF8StringEncoding];
+  hex  = [string UTF8String];
   len  = strlen(hex) / 2;
-  cstr = malloc(len);
-  if (cstr == NULL) {
-    return nil;
-  }
+//  cstr = malloc(len);
+//  if (cstr == NULL) {
+//    return nil;
+//  }
+  NSMutableData *nsdata = [NSMutableData dataWithLength:len];
+  char *data = [nsdata mutableBytes];
 
   /* Convert the hex string to a list of bytes */
-  buf[2] = '\0';
-  for (i = 0; i < len; i++) {
-    buf[0] = hex[2 * i];
-    buf[1] = hex[2 * i + 1];
-    cstr[i] = strtol(buf, NULL, 16);
+  for (i = 0; i < len; i += 2) {
+    buf[0] = hex[i];
+    buf[1] = hex[i + 1];
+    data[i] = strtol(buf, NULL, 16);
   }
 
-  NSMutableData *data = [[NSMutableData alloc] init];
-
   for (i = 0; i < len / 2; i += 8) {
-    l = (FETCH(cstr, i, len) << 24) |
-        (FETCH(cstr, i + 1, len) << 16) |
-        (FETCH(cstr, i + 2, len) << 8) |
-         FETCH(cstr, i + 3, len);
+    l = (FETCH(data, i, len) << 24) |
+        (FETCH(data, i + 1, len) << 16) |
+        (FETCH(data, i + 2, len) << 8) |
+         FETCH(data, i + 3, len);
 
-    r = (FETCH(cstr, i + 4, len) << 24) |
-        (FETCH(cstr, i + 5, len) << 16) |
-        (FETCH(cstr, i + 6, len) << 8) |
-         FETCH(cstr, i + 7, len);
+    r = (FETCH(data, i + 4, len) << 24) |
+        (FETCH(data, i + 5, len) << 16) |
+        (FETCH(data, i + 6, len) << 8) |
+         FETCH(data, i + 7, len);
 
     for (j = InputKey_n + 1; j > 1; j--) {
       l ^= InputKey_p[j];
@@ -76,19 +75,21 @@ NSString* PandoraDecrypt(NSString* string) {
     r ^= InputKey_p[1];
     l ^= InputKey_p[0];
 
-    l = htonl(l);
-    r = htonl(r);
-    [data appendBytes: &l length: sizeof(l)];
-    [data appendBytes: &r length: sizeof(r)];
+    sprintf(data + i, "%08x%08x", l, r);
+//    l = htonl(l);
+//    r = htonl(r);
+//    [data appendBytes: &l length: sizeof(l)];
+//    [data appendBytes: &r length: sizeof(r)];
   }
 
-  free(cstr);
+//  free(cstr);
 
-  NSString *ret = [[NSString alloc] initWithData:data
-    encoding:NSASCIIStringEncoding];
+  NSString *ret = [[NSString alloc] initWithData:nsdata
+    encoding:NSUTF8StringEncoding];
 
-  [data release];
+//  [data release];
 
+  NSLogd(@"%@", ret);
   [ret autorelease];
 
   return ret;
